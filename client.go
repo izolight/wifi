@@ -19,6 +19,7 @@ type Client struct {
 }
 
 // New creates a new Client.
+
 func New() (*Client, error) {
 	c, err := newClient()
 	if err != nil {
@@ -60,6 +61,12 @@ func (c *Client) PHYs() ([]*PHY, error) {
 	return c.c.PHYs()
 }
 
+// CreateNewInterface creates a new interfaces
+
+func (c *Client) CreateNewInterface(PHY int, ifaceType InterfaceType, name string) (err error) {
+	return c.c.CreateNewInterface(PHY, ifaceType, name)
+}
+
 // An osClient is the operating system-specific implementation of Client.
 type osClient interface {
 	Close() error
@@ -68,4 +75,5 @@ type osClient interface {
 	PHY(n int) (*PHY, error)
 	PHYs() ([]*PHY, error)
 	StationInfo(ifi *Interface) ([]*StationInfo, error)
+	CreateNewInterface(PHY int, ifaceType InterfaceType, name string) error
 }

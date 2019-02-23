@@ -31,3 +31,9 @@ func (c *client) BSS(ifi *Interface) (*BSS, error) {
 func (c *client) StationInfo(ifi *Interface) ([]*StationInfo, error) {
 	return nil, errUnimplemented
 }
+
+
+// CreateNewInterface always returns an error.
+func (c *client) CreateNewInterface(PHY int, ifaceType InterfaceType, name string) error
+	return errUnimplemented
+}

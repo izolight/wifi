@@ -8,13 +8,14 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strconv"
 	"time"
 	"unicode/utf8"
 
+	"./internal/nl80211"
 	"github.com/mdlayher/genetlink"
 	"github.com/mdlayher/netlink"
 	"github.com/mdlayher/netlink/nlenc"
-	"github.com/mdlayher/wifi/internal/nl80211"
 )
 
 // Errors which may occur when interacting with generic netlink.
@@ -37,6 +38,7 @@ type client struct {
 // newClient dials a generic netlink connection and verifies that nl80211
 // is available for use by this package.
 func newClient() (*client, error) {
+	fmt.Println("d")
 	c, err := genetlink.Dial(nil)
 	if err != nil {
 		return nil, err
@@ -223,6 +225,78 @@ func (c *client) StationInfo(ifi *Interface) ([]*StationInfo, error) {
 	}
 
 	return stations, nil
+}
+
+/*
+@NL80211_CMD_NEW_INTERFACE: Newly created virtual interface or response
+ *	to %NL80211_CMD_GET_INTERFACE. Has %NL80211_ATTR_IFINDEX,
+ *	%NL80211_ATTR_WIPHY and %NL80211_ATTR_IFTYPE attributes. Can also
+ *	be sent from userspace to request creation of a new virtual interface,
+ *	........ THIS: then requires attributes %NL80211_ATTR_WIPHY, %NL80211_ATTR_IFTYPE and
+ *	%NL80211_ATTR_IFNAME.
+
+
+ attrs = append(attrs, netlink.Attribute{Type: nl80211.AttrSplitWiphyDump})
+	nlattrs, err := netlink.MarshalAttributes(attrs)
+	if err != nil {
+		return nil, err
+	}
+
+	req := genetlink.Message{
+		Header: genetlink.Header{
+			Command: nl80211.CmdGetWiphy,
+			Version: c.familyVersion,
+		},
+		Data: nlattrs,
+	}
+
+	flags := netlink.HeaderFlagsRequest | netlink.HeaderFlagsDump
+	msgs, err := c.c.Execute(req, c.familyID, flags)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := c.checkMessages(msgs, nl80211.CmdNewWiphy); err != nil {
+		return nil, err
+	}
+
+	return parsePHYs(msgs)
+*/
+
+//CreateNewInterface creates a new interface
+func (c *client) CreateNewInterface(PHY int, ifaceType InterfaceType, name string) error {
+
+	var attrs []netlink.Attribute
+
+	attrs = append(attrs, netlink.Attribute{Type: nl80211.AttrWiphy, Data: []byte(strconv.Itoa(PHY))})
+	attrs = append(attrs, netlink.Attribute{Type: nl80211.AttrIftype, Data: []byte(strconv.Itoa(int(ifaceType)))})
+	attrs = append(attrs, netlink.Attribute{Type: nl80211.AttrIfname, Data: []byte(name)})
+
+	nlattrs, err := netlink.MarshalAttributes(attrs)
+	if err != nil {
+		return err
+	}
+
+	req := genetlink.Message{
+		Header: genetlink.Header{
+			Command: nl80211.CmdNewInterface,
+			Version: c.familyVersion,
+		},
+		Data: nlattrs,
+	}
+
+	flags := netlink.HeaderFlagsRequest | netlink.HeaderFlagsDump | netlink.HeaderFlagsCreate
+	msgs, err := c.c.Execute(req, c.familyID, flags)
+	if err != nil {
+		fmt.Println("this outputs: ***operation not supported***")
+		return err
+	}
+
+	if err := c.checkMessages(msgs, nl80211.CmdNewInterface); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // checkMessages verifies that response messages from generic netlink contain

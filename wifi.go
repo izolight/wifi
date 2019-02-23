@@ -6,7 +6,7 @@ import (
 	"net"
 	"time"
 
-	"github.com/mdlayher/wifi/internal/nl80211"
+	"./internal/nl80211"
 )
 
 var (

@@ -27,13 +27,20 @@ func (c *client) BSS(ifi *Interface) (*BSS, error) {
 	return nil, errUnimplemented
 }
 
+func (c *client) PHY(index int) (*PHY, error) {
+	return nil, errUnimplemented
+}
+
+func (c *client) PHYs() ([]*PHY, error) {
+	return nil, errUnimplemented
+}
+
 // StationInfo always returns an error.
 func (c *client) StationInfo(ifi *Interface) ([]*StationInfo, error) {
 	return nil, errUnimplemented
 }
 
-
 // CreateNewInterface always returns an error.
-func (c *client) CreateNewInterface(PHY int, ifaceType InterfaceType, name string) error
+func (c *client) CreateNewInterface(PHY int, ifaceType InterfaceType, name string) error {
 	return errUnimplemented
 }

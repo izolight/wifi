@@ -38,7 +38,7 @@ type client struct {
 // newClient dials a generic netlink connection and verifies that nl80211
 // is available for use by this package.
 func newClient() (*client, error) {
-	fmt.Println("d")
+
 	c, err := genetlink.Dial(nil)
 	if err != nil {
 		return nil, err
@@ -139,7 +139,7 @@ func (c *client) getPHYs(attrs []netlink.Attribute) ([]*PHY, error) {
 		Data: nlattrs,
 	}
 
-	flags := netlink.HeaderFlagsRequest | netlink.HeaderFlagsDump
+	flags := netlink.Request | netlink.Dump
 	msgs, err := c.c.Execute(req, c.familyID, flags)
 	if err != nil {
 		return nil, err
@@ -264,6 +264,7 @@ func (c *client) StationInfo(ifi *Interface) ([]*StationInfo, error) {
 */
 
 //CreateNewInterface creates a new interface
+//This absolutely does not work --
 func (c *client) CreateNewInterface(PHY int, ifaceType InterfaceType, name string) error {
 
 	var attrs []netlink.Attribute

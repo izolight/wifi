@@ -4,15 +4,15 @@ package wifi
 
 import (
 	"bytes"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net"
 	"os"
-	"strconv"
 	"time"
 	"unicode/utf8"
 
-	"./internal/nl80211"
+	"github.com/henrikkorsgaard/wifi/internal/nl80211"
 	"github.com/mdlayher/genetlink"
 	"github.com/mdlayher/netlink"
 	"github.com/mdlayher/netlink/nlenc"
@@ -268,11 +268,12 @@ func (c *client) CreateNewInterface(PHY int, ifaceType InterfaceType, name strin
 
 	var attrs []netlink.Attribute
 
-	attrs = append(attrs, netlink.Attribute{Type: nl80211.AttrWiphy, Data: []byte(strconv.Itoa(PHY))})
-	attrs = append(attrs, netlink.Attribute{Type: nl80211.AttrIftype, Data: []byte(strconv.Itoa(int(ifaceType)))})
-	attrs = append(attrs, netlink.Attribute{Type: nl80211.AttrIfname, Data: []byte(name)})
+	attrs = append(attrs, netlink.Attribute{Type: nl80211.AttrWiphy, Data: nlenc.Uint32Bytes(uint32(PHY))})
+	attrs = append(attrs, netlink.Attribute{Type: nl80211.AttrIfname, Data: nlenc.Bytes(name)})
+	attrs = append(attrs, netlink.Attribute{Type: nl80211.AttrIftype, Data: nlenc.Uint32Bytes(uint32(ifaceType))})
 
 	nlattrs, err := netlink.MarshalAttributes(attrs)
+	fmt.Println("Debug", hex.EncodeToString(nlattrs))
 	if err != nil {
 		return err
 	}
@@ -285,10 +286,10 @@ func (c *client) CreateNewInterface(PHY int, ifaceType InterfaceType, name strin
 		Data: nlattrs,
 	}
 
-	flags := netlink.HeaderFlagsRequest | netlink.HeaderFlagsDump | netlink.HeaderFlagsCreate
+	flags := netlink.Request | netlink.Acknowledge
 	msgs, err := c.c.Execute(req, c.familyID, flags)
+
 	if err != nil {
-		fmt.Println("this outputs: ***operation not supported***")
 		return err
 	}
 

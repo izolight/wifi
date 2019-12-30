@@ -13,7 +13,7 @@ import (
 	"github.com/mdlayher/genetlink"
 	"github.com/mdlayher/netlink"
 	"github.com/mdlayher/netlink/nlenc"
-	"github.com/howardstark/wifi/internal/nl80211"
+	"github.com/mdlayher/wifi/internal/nl80211"
 
 )
 
@@ -123,6 +123,15 @@ func (c *client) BSS(ifi *Interface) (*BSS, error) {
 	return parseBSS(msgs)
 }
 
+type nestedBytes struct {
+	data []byte
+	typ uint16
+}
+func (n nestedBytes) encode(ae *netlink.AttributeEncoder) error {
+	ae.Bytes(n.typ, n.data)
+	return nil
+}
+
 func (c *client) ScanAPs(ifi *Interface) ([]*BSS, error) {
 	family, err := c.c.GetFamily(nl80211.GenlName)
 	if err != nil {
@@ -143,29 +152,14 @@ func (c *client) ScanAPs(ifi *Interface) ([]*BSS, error) {
 		return nil, err
 	}
 
-	nestedAttrs, err := netlink.MarshalAttributes([]netlink.Attribute{
-		{
-			Type: nl80211.SchedScanMatchAttrSsid,
-			Length: 0,
-			Data: nlenc.Bytes(""),
-		},
-	})
-	if err != nil {
-		return nil, err
+	nestedAttrs := nestedBytes{
+		data:  []byte(""),
+		typ: nl80211.SchedScanMatchAttrSsid,
 	}
-
-	attrs, err := netlink.MarshalAttributes([]netlink.Attribute{
-		{
-			Type: nl80211.AttrScanSsids,
-			Nested: true,
-			Length: uint16(len(nestedAttrs)),
-			Data: nestedAttrs,
-		},
-		{
-			Type: nl80211.AttrIfindex,
-			Data: nlenc.Uint32Bytes(uint32(ifi.Index)),
-		},
-	})
+	ae := netlink.NewAttributeEncoder()
+	ae.Nested(nl80211.AttrScanSsids, nestedAttrs.encode)
+	ae.Uint32(nl80211.AttrIfindex, uint32(ifi.Index))
+	attrs, err := ae.Encode()
 	if err != nil {
 		return nil, err
 	}
@@ -178,7 +172,7 @@ func (c *client) ScanAPs(ifi *Interface) ([]*BSS, error) {
 		Data: attrs,
 	}
 
-	flags := netlink.HeaderFlagsRequest | netlink.HeaderFlagsDump
+	flags := netlink.Request | netlink.Dump
 	msgs, err := c.c.Execute(req, c.familyID, flags)
 	if err != nil {
 		return nil, err
@@ -220,7 +214,7 @@ func (c *client) ScanAPs(ifi *Interface) ([]*BSS, error) {
 		Data: attrs,
 	}
 
-	flags = netlink.HeaderFlagsRequest | netlink.HeaderFlagsDump
+	flags = netlink.Request | netlink.Dump
 	msgs, err = c.c.Execute(req, c.familyID, flags)
 	if err != nil {
 		return nil, err

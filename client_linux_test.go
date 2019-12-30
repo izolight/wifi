@@ -19,7 +19,7 @@ import (
 	"github.com/mdlayher/genetlink/genltest"
 	"github.com/mdlayher/netlink"
 	"github.com/mdlayher/netlink/nlenc"
-	"github.com/howardstark/wifi/internal/nl80211"
+	"github.com/mdlayher/wifi/internal/nl80211"
 )
 
 func TestLinux_clientInterfacesBadResponseCommand(t *testing.T) {
@@ -287,42 +287,26 @@ func TestLinux_clientScanAPOK(t *testing.T) {
 		},
 	}
 
-	const flags = netlink.HeaderFlagsRequest | netlink.HeaderFlagsDump
+	const flags = netlink.Request | netlink.Dump
 
 	msgsFn := mustMessages(t, nl80211.CmdNewScanResults, want)
 
 	c := testClient(t, checkRequest(nl80211.CmdTriggerScan, flags,
 		func(greq genetlink.Message, nreq netlink.Message) ([]genetlink.Message, error) {
-			nestedAttrs, err := netlink.MarshalAttributes([]netlink.Attribute{
-				{
-					Type: nl80211.SchedScanMatchAttrSsid,
-					Length: 0,
-					Data: nlenc.Bytes(""),
-				},
-			})
+			nestedAttrs := nestedBytes{
+				data:[]byte(""),
+				typ: nl80211.SchedScanMatchAttrSsid,
+			}
+			ae := netlink.NewAttributeEncoder()
+			ae.Nested(nl80211.AttrScanSsids, nestedAttrs.encode)
+			ae.Uint32(nl80211.AttrIfindex, uint32(ifi.Index))
+			expAttrs, err := ae.Encode()
 			if err != nil {
 				return nil, err
 			}
-			expAttrs := []netlink.Attribute{
-				{
-					Type: nl80211.AttrScanSsids,
-					Nested: true,
-					Length: uint16(len(nestedAttrs)),
-					Data: nestedAttrs,
-				},
-				{
-					Type: nl80211.AttrIfindex,
-					Data: nlenc.Uint32Bytes(uint32(ifi.Index)),
-				},
-			}
 
-			attrs, err := netlink.UnmarshalAttributes(greq.Data)
-			if err != nil {
-				t.Fatalf("failed to unmarshal attributes: %v", err)
-			}
-
-			if diff := diffNetlinkAttributes(expAttrs, attrs); diff != "" {
-				t.Fatalf("unexpected request netlink attributes (-want +got):\n%s", diff)
+			if !bytes.Equal(expAttrs, greq.Data) {
+				t.Fatalf("unexpected request netlink attributes (-want +got):\n-%s\n+%s", expAttrs, greq.Data)
 			}
 
 			return msgsFn(greq, nreq)
@@ -504,6 +488,21 @@ func testClient(t *testing.T, fn genltest.Func) *client {
 	}
 
 	return client
+}
+
+
+func checkRequest(command uint8, flags netlink.HeaderFlags, fn genltest.Func) genltest.Func {
+	return func(greq genetlink.Message, nreq netlink.Message) ([]genetlink.Message, error) {
+		if want, got := command, greq.Header.Command; command != 0 && want != got {
+			return nil, fmt.Errorf("unexpected generic netlink header command: %d, want: %d", got, want)
+		}
+
+		if want, got := flags, nreq.Header.Flags; flags != 0 && want != got {
+			return nil, fmt.Errorf("unexpected generic netlink header command: %s, want: %s", got, want)
+		}
+
+		return fn(greq, nreq)
+	}
 }
 
 // diffNetlinkAttributes compares two []netlink.Attributes after zeroing their

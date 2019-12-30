@@ -19,6 +19,7 @@ type Client struct {
 }
 
 // New creates a new Client.
+
 func New() (*Client, error) {
 	c, err := newClient()
 	if err != nil {
@@ -50,10 +51,29 @@ func (c *Client) StationInfo(ifi *Interface) ([]*StationInfo, error) {
 	return c.c.StationInfo(ifi)
 }
 
+// PHY returns the WiFi device corresponding to the specified index.
+func (c *Client) PHY(index int) (*PHY, error) {
+	return c.c.PHY(index)
+}
+
+// PHYs returns a list of the system's WiFi devices.
+func (c *Client) PHYs() ([]*PHY, error) {
+	return c.c.PHYs()
+}
+
+// CreateNewInterface creates a new interfaces
+
+func (c *Client) CreateNewInterface(PHY int, ifaceType InterfaceType, name string) (err error) {
+	return c.c.CreateNewInterface(PHY, ifaceType, name)
+}
+
 // An osClient is the operating system-specific implementation of Client.
 type osClient interface {
 	Close() error
 	Interfaces() ([]*Interface, error)
 	BSS(ifi *Interface) (*BSS, error)
+	PHY(n int) (*PHY, error)
+	PHYs() ([]*PHY, error)
 	StationInfo(ifi *Interface) ([]*StationInfo, error)
+	CreateNewInterface(PHY int, ifaceType InterfaceType, name string) error
 }
